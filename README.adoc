@@ -1,0 +1,20 @@
+= Quarkus Compose Dev Services Demo
+
+Demos using Quarkus Dev Services:
+
+* a `MockService` class in `/src/dev/java` that runs in `test` and `dev` modes, but not in `prod`.
+* a `compose.yaml` that starts a `minio` S3 server.
+* a postgresql database, so the Compose Dev Services load at all (see https://github.com/quarkusio/quarkus/issues/48460[issue #48460]).
+
+Start the dev service with:
+
+[source,bash]
+----
+mvn -Pdev
+----
+
+Then you can access all endpoints in the Dev UI, or by opening these URLs in your browser, curl, httpie, etc.:
+
+* http://localhost:8080/hello direct greeting
+* http://localhost:8080/mock response from the `MockService`
+* http://localhost:8080/hello/mock greeting utilizing the `MockService`

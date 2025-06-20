@@ -1,0 +1,15 @@
+quarkus:
+  compose:
+    devservices:
+      enabled: true
+      files: src/dev/compose.yaml
+  swagger-ui:
+    always-include: true
+    deep-linking: true
+    display-request-duration: true
+    path: /rest-ui
+    theme: muted
+    try-it-out-enabled: true
+  rest-client:
+    "mock-endpoint":
+      uri: http://localhost:8080/mock

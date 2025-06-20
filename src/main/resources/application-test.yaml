@@ -1,0 +1,4 @@
+quarkus:
+  rest-client:
+    "mock-endpoint":
+      uri: http://localhost:8081/mock
