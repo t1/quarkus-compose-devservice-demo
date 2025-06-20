@@ -18,3 +18,5 @@ Then you can access all endpoints in the Dev UI, or by opening these URLs in you
 * http://localhost:8080/hello direct greeting
 * http://localhost:8080/mock response from the `MockService`
 * http://localhost:8080/hello/mock greeting utilizing the `MockService`
+* http://localhost:9000/test/s3.txt response from `S3`
+* http://localhost:8080/hello/s3 greeting utilizing `S3`

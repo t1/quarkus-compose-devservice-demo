@@ -11,5 +11,9 @@ quarkus:
     theme: muted
     try-it-out-enabled: true
   rest-client:
-    "mock-endpoint":
+    mock-service:
       uri: http://localhost:8080/mock
+    s3:
+      uri: http://localhost:9000
+      username: minioadmin
+      password: minioadmin
