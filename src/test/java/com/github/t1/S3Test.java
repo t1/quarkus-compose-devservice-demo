@@ -1,8 +1,11 @@
 package com.github.t1;
 
+import io.quarkus.test.junit.QuarkusTest;
 import jakarta.json.Json;
 import jakarta.json.JsonValue;
 import lombok.extern.slf4j.Slf4j;
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
@@ -15,9 +18,15 @@ import static org.assertj.core.api.BDDAssertions.then;
 import static org.hamcrest.CoreMatchers.is;
 
 @Slf4j
+@QuarkusTest
 class S3Test {
-    static final String ENDPOINT = "http://localhost:9000";
-    static S3 S3 = new S3(ENDPOINT, "minioadmin", "minioadmin");
+    private static final Config config = ConfigProvider.getConfig();
+    public static final String ENDPOINT = "http://localhost:" + s3config("port");
+    static S3 S3 = new S3(ENDPOINT, s3config("username"), s3config("password"));
+
+    private static String s3config(String key) {
+        return config.getValue("quarkus.rest-client.s3." + key, String.class);
+    }
 
     static JsonValue json(String string) {
         return Json.createReader(new StringReader(string)).readValue();

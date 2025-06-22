@@ -21,6 +21,8 @@ public class HelloResource {
     @Inject @RestClient MockApi mockApi;
 
 
+    /// We could use the S3 class here, but using a REST client is so much simpler.
+    // TODO instead of setting the bucket policy to `download`, we could use a presigned URL.
     @RegisterRestClient(configKey = "s3")
     @Path("/{bucketName}/{objectPath: .*}")
     public interface S3Api {

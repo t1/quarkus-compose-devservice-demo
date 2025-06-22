@@ -1,12 +1,17 @@
 = Quarkus Compose Dev Services Demo
 
-Demos using Quarkus Dev Services:
+Advanced demos of using https://quarkus.io[Quarkus] Dev Services:
 
 * a `MockService` class in `/src/dev/java` that runs in `test` and `dev` modes, but not in `prod`.
-* a `compose.yaml` that starts a `minio` S3 server.
-* a postgresql database, so the Compose Dev Services load at all (see https://github.com/quarkusio/quarkus/issues/48460[issue #48460]).
+* a `compose.yaml` that starts a https://min.io[min.io] S3 server.
+The `TestDataLoader` class in `/src/test/java` creates a bucket and uploads some test data to the `minio` server.
 
-Start the dev service with:
+For details about the Compose Dev Services, see the corresponding https://quarkus.io/guides/compose-dev-services[Quarkus Guide].
+Note that the `MockService` does not use that mechanism nor a Docker container, but being just a regular Java class, this is a handy alternative for mocking services.
+
+== Usage
+
+Start the dev mode with (we set the `defaultGoal` to `quarkus:dev` in the `dev` profile of the `pom.xml`):
 
 [source,bash]
 ----
@@ -18,5 +23,35 @@ Then you can access all endpoints in the Dev UI, or by opening these URLs in you
 * http://localhost:8080/hello direct greeting
 * http://localhost:8080/mock response from the `MockService`
 * http://localhost:8080/hello/mock greeting utilizing the `MockService`
-* http://localhost:9000/test/s3.txt response from `S3`
+* http://localhost:<random-port>/test/s3.txt response from `S3`
 * http://localhost:8080/hello/s3 greeting utilizing `S3`
+
+You can also run the tests by pressing `r`.
+
+== Issues
+
+=== Dependency that defines a Dev Service https://github.com/quarkusio/quarkus/issues/48460[#48460]
+
+We have a dependency on `quarkus-jdbc-postgresql`, even though we don't use it in this demo.
+But we need some dependency with a Dev Service so the Compose Dev Services load at all.
+
+=== Port Mapping
+
+When you run the tests from within the dev mode, a second instance of the Dev Services is started, so we need separate ports for the `minio` service for `test` and `dev` mode.
+The easiest way to do that is to map the `minio` service port `9000` to a random host port.
+
+We would also like to bind the network interface only to `localhost`, so the service is not being exposed on a Linux machine (as the default binding is `0.0.0.0`), but then we need to specify the host port as well; `127.0.0.1:9000` doesn't work, because `127.0.0.1` is not a valid port number.
+
+The https://github.com/compose-spec/compose-spec/blob/main/spec.md[Compose Spec] defines a syntax for specifying a port range, so we could use "127.0.0.1:9000:9000-9999", but that syntax is currently not supported by Quarkus Dev Services; it fails with `Error parsing ExposedPort '9000-9999'` in `ExposedPort.java:131`.
+
+There's also a https://github.com/compose-spec/compose-spec/blob/main/spec.md#long-syntax-3[long form] for the port mapping, but that fails, too:
+
+[source,yaml]
+----
+services:
+  s3:
+    ports:
+      - name: api
+        target: 9000
+        host_ip: 127.0.0.1
+----

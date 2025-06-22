@@ -1,10 +1,15 @@
 services:
-  minio:
+  s3:
     image: minio/minio
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
-      #environment:
-      #MINIO_ROOT_USER: 'example'
-      #MINIO_ROOT_PASSWORD: 'secret'
+      - "9000"
+      - "9001"
+    environment:
+      MINIO_ROOT_USER: 'superuser'
+      MINIO_ROOT_PASSWORD: 'some-not-so-secret-secret'
+    labels:
+      io.quarkus.devservices.compose.config_map.env.MINIO_ROOT_USER: quarkus.rest-client.s3.username
+      io.quarkus.devservices.compose.config_map.env.MINIO_ROOT_PASSWORD: quarkus.rest-client.s3.password
+      io.quarkus.devservices.compose.config_map.port.9000: quarkus.rest-client.s3.port
+      io.quarkus.devservices.compose.config_map.port.9001: quarkus.rest-client.s3.ui-port
     command: server /data --console-address ":9001"

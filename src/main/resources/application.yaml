@@ -14,6 +14,5 @@ quarkus:
     mock-service:
       uri: http://localhost:8080/mock
     s3:
-      uri: http://localhost:9000
-      username: minioadmin
-      password: minioadmin
+      # the port as well as the username and password are set via the compose.yaml file
+      uri: http://localhost:${quarkus.rest-client.s3.port}

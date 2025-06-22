@@ -38,7 +38,7 @@ class HelloResourceTest {
     @Test
     void testS3Endpoint() {
         given()
-                .when().get("http://localhost:9000/test/s3.txt")
+                .when().get(S3Test.ENDPOINT + "/test/s3.txt")
                 .then()
                 .statusCode(200)
                 .body(is("S3 file available"));

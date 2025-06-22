@@ -45,9 +45,10 @@ public class TestDataLoader {
 
     @PostConstruct
     void init() {
-        log.info("TestDataLoader initialized. You can load your test data here.");
+        log.info("initializing test data in S3 bucket: {}/{}", bucketName, objectName);
         createBucket();
         putFile();
+        log.info("initialized test data in S3 bucket: {}/{}", bucketName, objectName);
     }
 
     private void createBucket() {
