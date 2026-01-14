@@ -12,13 +12,13 @@ import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
 
 @Path("/hello")
 public class HelloResource {
-    @RegisterRestClient(configKey = "mock-service")
+    @RegisterRestClient(configKey = "fake-service")
     @Path("/")
-    public interface MockApi {
-        @GET @Produces(TEXT_PLAIN) String mock();
+    public interface NestedApi {
+        @GET @Produces(TEXT_PLAIN) String fake();
     }
 
-    @Inject @RestClient MockApi mockApi;
+    @Inject @RestClient NestedApi nestedApi;
 
 
     /// We could use the S3 class here, but using a REST client is so much simpler.
@@ -37,9 +37,9 @@ public class HelloResource {
     @Produces(TEXT_PLAIN)
     public String hello() {return "Hello World!";}
 
-    @GET @Path("/mock")
+    @GET @Path("/fake")
     @Produces(TEXT_PLAIN)
-    public String mock() {return "Hello, " + mockApi.mock();}
+    public String fake() {return "Hello, " + nestedApi.fake();}
 
     @GET @Path("/s3")
     @Produces(TEXT_PLAIN)

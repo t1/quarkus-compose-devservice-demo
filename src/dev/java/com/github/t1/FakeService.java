@@ -6,10 +6,10 @@ import jakarta.ws.rs.Produces;
 
 import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
 
-@Path("/mock")
-public class MockService {
+@Path("/fake")
+public class FakeService {
 
     @GET
     @Produces(TEXT_PLAIN)
-    public String mock() {return "MockService is working!";}
+    public String fake() {return "FakeService is working!";}
 }

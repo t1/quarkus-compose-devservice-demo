@@ -53,6 +53,7 @@ public class TestDataLoader {
 
     private void createBucket() {
         log.info("make bucket: {}", bucketName);
+
         s3.makeBucket(bucketName);
 
         log.info("set access policy to DOWNLOAD for bucket {}", bucketName);

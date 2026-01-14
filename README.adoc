@@ -2,12 +2,12 @@
 
 Advanced demos of using https://quarkus.io[Quarkus] Dev Services:
 
-* a `MockService` class in `/src/dev/java` that runs in `test` and `dev` modes, but not in `prod`.
+* a `FakeService` class in `/src/dev/java` that runs in `test` and `dev` modes, but not in `prod`.
 * a `compose.yaml` that starts a https://min.io[min.io] S3 server.
 The `TestDataLoader` class in `/src/test/java` creates a bucket and uploads some test data to the `minio` server.
 
 For details about the Compose Dev Services, see the corresponding https://quarkus.io/guides/compose-dev-services[Quarkus Guide].
-Note that the `MockService` does not use that mechanism nor a Docker container, but being just a regular Java class, this is a handy alternative for mocking services.
+Note that the `FakeService` does not use that mechanism nor a Docker container, but being just a regular Java class, this is a handy alternative for mocking/faking services.
 
 == Usage
 
@@ -21,8 +21,8 @@ mvn -Pdev
 Then you can access all endpoints in the Dev UI, or by opening these URLs in your browser, curl, httpie, etc.:
 
 * http://localhost:8080/hello direct greeting
-* http://localhost:8080/mock response from the `MockService`
-* http://localhost:8080/hello/mock greeting utilizing the `MockService`
+* http://localhost:8080/fake response from the `FakeService`
+* http://localhost:8080/hello/fake greeting utilizing the `FakeService`
 * http://localhost:<random-port>/test/s3.txt response from `S3`
 * http://localhost:8080/hello/s3 greeting utilizing `S3`
 
@@ -34,6 +34,8 @@ You can also run the tests by pressing `r`.
 
 We have a dependency on `quarkus-jdbc-postgresql`, even though we don't use it in this demo.
 But we need some dependency with a Dev Service so the Compose Dev Services load at all.
+The downside is that the `postgresql` container is started as well.
+It's not part of the compose network and won't get cleaned up by Ryuk!
 
 === Port Mapping
 

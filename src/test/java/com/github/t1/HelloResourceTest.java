@@ -18,21 +18,21 @@ class HelloResourceTest {
     }
 
     @Test
-    void testMockEndpoint() {
+    void testFakeEndpoint() {
         given()
-                .when().get("/mock")
+                .when().get("/fake")
                 .then()
                 .statusCode(200)
-                .body(is("MockService is working!"));
+                .body(is("FakeService is working!"));
     }
 
     @Test
-    void testHelloMockEndpoint() {
+    void testHelloFakeEndpoint() {
         given()
-                .when().get("/hello/mock")
+                .when().get("/hello/fake")
                 .then()
                 .statusCode(200)
-                .body(is("Hello, MockService is working!"));
+                .body(is("Hello, FakeService is working!"));
     }
 
     @Test
