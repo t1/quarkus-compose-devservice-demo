@@ -21,8 +21,8 @@ import static org.hamcrest.CoreMatchers.is;
 @QuarkusTest
 class S3Test {
     private static final Config config = ConfigProvider.getConfig();
-    public static final String ENDPOINT = "http://localhost:" + s3config("port");
-    static S3 S3 = new S3(ENDPOINT, s3config("username"), s3config("password"));
+    public static final String ENDPOINT = s3config("uri");
+    static S3 S3 = new S3(ENDPOINT, "dummy-region", s3config("username"), s3config("password"));
 
     private static String s3config(String key) {
         return config.getValue("quarkus.rest-client.s3." + key, String.class);
@@ -35,9 +35,9 @@ class S3Test {
     @Nested class WithBucket {
         static final String bucketName = "test";
 
-        @BeforeAll static void shouldMakeBucket() {
+        @BeforeAll static void shouldCreateBucket() {
             try {
-                S3.makeBucket(bucketName);
+                S3.createBucket(bucketName);
                 log.info("bucket made: {}", bucketName);
             } catch (S3.BucketAlreadyOwnedByYouException e) {
                 log.info("bucket already exists: {}", bucketName);
@@ -96,10 +96,7 @@ class S3Test {
                 static final String content = "S3 file available";
 
                 @BeforeAll static void shouldUploadFile() {
-                    var response = S3.putTextObject(bucketName, objectName, content);
-                    then(response.bucket()).isEqualTo(bucketName);
-                    then(response.object()).isEqualTo(objectName);
-                    log.info("file uploaded: {}/{}", bucketName, objectName);
+                    S3.putTextObject(bucketName, objectName, content);
                 }
 
                 @Test void shouldGetFile() {

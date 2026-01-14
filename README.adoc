@@ -4,7 +4,7 @@ Advanced demos of using https://quarkus.io[Quarkus] Dev Services:
 
 * a `FakeService` class in `/src/dev/java` that runs in `test` and `dev` modes, but not in `prod`.
 * a `compose.yaml` that starts a https://min.io[min.io] S3 server.
-The `TestDataLoader` class in `/src/test/java` creates a bucket and uploads some test data to the `minio` server.
+The `TestDataLoader` class in `/src/dev/java` creates a bucket and uploads some test data to the `minio` server.
 
 For details about the Compose Dev Services, see the corresponding https://quarkus.io/guides/compose-dev-services[Quarkus Guide].
 Note that the `FakeService` does not use that mechanism nor a Docker container, but being just a regular Java class, this is a handy alternative for mocking/faking services.

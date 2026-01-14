@@ -1,150 +1,117 @@
 package com.github.t1;
 
-import io.minio.BucketExistsArgs;
-import io.minio.GetBucketPolicyArgs;
-import io.minio.GetObjectArgs;
-import io.minio.GetObjectResponse;
-import io.minio.MakeBucketArgs;
-import io.minio.MinioClient;
-import io.minio.ObjectWriteResponse;
-import io.minio.PutObjectArgs;
-import io.minio.RemoveBucketArgs;
-import io.minio.RemoveObjectArgs;
-import io.minio.SetBucketPolicyArgs;
-import io.minio.errors.ErrorResponseException;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+import software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-
-import static io.minio.ObjectWriteArgs.MIN_MULTIPART_SIZE;
+import java.net.URI;
 
 @ApplicationScoped
 @Accessors(fluent = true)
 @SuppressWarnings("resource")
-public
-class S3 implements AutoCloseable {
+public class S3 implements AutoCloseable {
     private final String endpoint;
+    private final String region;
     private final String username;
     private final String password;
 
     @Getter(lazy = true)
-    private final MinioClient s3 = MinioClient.builder()
-            .endpoint(endpoint)
-            .credentials(username, password)
+    private final S3Client s3 = S3Client.builder()
+            .endpointOverride(URI.create(endpoint))
+            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(username, password)))
+            .region(Region.of(region))
+            .httpClientBuilder(ApacheHttpClient.builder())
+            .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
             .build();
 
     public S3(
             @ConfigProperty(name = "quarkus.rest-client.s3.uri") String endpoint,
+            @ConfigProperty(name = "quarkus.rest-client.s3.region", defaultValue = "dummy-region") String region,
             @ConfigProperty(name = "quarkus.rest-client.s3.username") String username,
             @ConfigProperty(name = "quarkus.rest-client.s3.password") String password) {
         this.endpoint = endpoint;
+        this.region = region;
         this.username = username;
         this.password = password;
     }
 
-    public void makeBucket(String bucketName) {
+    public void createBucket(String bucketName) {
         try {
-            s3().makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
-        } catch (ErrorResponseException e) {
-            if ("BucketAlreadyOwnedByYou".equals(e.errorResponse().code())) {
+            s3().createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
+        } catch (S3Exception e) {
+            var code = e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null;
+            if ("BucketAlreadyOwnedByYou".equals(code)) {
                 throw new BucketAlreadyOwnedByYouException(bucketName, e);
             } else {
-                throw new RuntimeException("can't make bucket " + bucketName, e);
+                throw e;
             }
-        } catch (Exception e) {
-            throw new RuntimeException("can't make bucket " + bucketName, e);
         }
     }
 
     public boolean bucketExists(String bucketName) {
         try {
-            return s3().bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
-        } catch (Exception e) {
+            s3().headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
+            return true;
+        } catch (NoSuchBucketException e) {
+            return false;
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) return false;
             throw new RuntimeException("can't check if bucket exists", e);
         }
     }
 
     public void setBucketPolicy(String bucketName, String policy) {
-        try {
-            s3().setBucketPolicy(SetBucketPolicyArgs.builder()
-                    .bucket(bucketName)
-                    .config(policy)
-                    .build());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        s3().putBucketPolicy(PutBucketPolicyRequest.builder().bucket(bucketName).policy(policy).build());
     }
 
     public String getBucketPolicy(String bucketName) {
-        try {
-            return s3().getBucketPolicy(GetBucketPolicyArgs.builder().bucket(bucketName).build());
-        } catch (Exception e) {
-            throw new RuntimeException("can't get bucket policy", e);
-        }
+        var resp = s3().getBucketPolicy(GetBucketPolicyRequest.builder().bucket(bucketName).build());
+        return resp.policy();
     }
 
-    public ObjectWriteResponse putTextObject(String bucketName, String objectName, String content) {
-        try {
-            return s3().putObject(PutObjectArgs.builder()
-                    .bucket(bucketName)
-                    .object(objectName)
-                    .contentType("text/plain")
-                    .stream(new ByteArrayInputStream(content.getBytes()), -1, MIN_MULTIPART_SIZE)
-                    .build());
-        } catch (Exception e) {
-            throw new RuntimeException("can't put text object", e);
-        }
+    public void putTextObject(String bucketName, String objectName, String content) {
+        s3().putObject(PutObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(objectName)
+                        .contentType("text/plain")
+                        .build(),
+                RequestBody.fromString(content));
     }
 
     public String getTextObject(String bucketName, String objectName) {
-        var response = getObject(bucketName, objectName);
-        try {
-            return new String(response.readAllBytes());
-        } catch (IOException e) {
-            throw new RuntimeException("can't read content of text object", e);
-        }
-    }
-
-    public GetObjectResponse getObject(String bucketName, String objectName) {
-        try {
-            return s3().getObject(GetObjectArgs.builder()
-                    .bucket(bucketName)
-                    .object(objectName)
-                    .build());
-        } catch (Exception e) {
-            throw new RuntimeException("can't get object", e);
-        }
+        return s3().getObjectAsBytes(GetObjectRequest.builder().bucket(bucketName).key(objectName).build()).asUtf8String();
     }
 
     public void removeObject(String bucketName, String objectName) {
-        try {
-            s3().removeObject(RemoveObjectArgs.builder()
-                    .bucket(bucketName)
-                    .object(objectName)
-                    .build());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        var req = DeleteObjectRequest.builder().bucket(bucketName).key(objectName).build();
+        s3().deleteObject(req);
     }
 
     public void removeBucket(String bucketName) {
-        try {
-            s3().removeBucket(RemoveBucketArgs.builder().bucket(bucketName).build());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        var req = DeleteBucketRequest.builder().bucket(bucketName).build();
+        s3().deleteBucket(req);
     }
 
     @Override public void close() {
-        try {
-            s3().close();
-        } catch (Exception e) {
-            throw new RuntimeException("can't close", e);
-        }
+        s3().close();
     }
 
     public static class BucketAlreadyOwnedByYouException extends RuntimeException {

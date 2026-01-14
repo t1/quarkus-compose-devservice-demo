@@ -10,9 +10,3 @@ quarkus:
     path: /rest-ui
     theme: muted
     try-it-out-enabled: true
-  rest-client:
-    fake-service:
-      uri: http://localhost:8080/fake
-    s3:
-      # the port as well as the username and password are set via the compose.yaml file
-      uri: http://localhost:${quarkus.rest-client.s3.port}

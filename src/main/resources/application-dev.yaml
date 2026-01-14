@@ -1,7 +1,7 @@
 quarkus:
   rest-client:
     fake-service:
-      uri: http://localhost:8081/fake
+      uri: http://localhost:8080/fake
     s3:
       # We already configure the port in the compose.yaml, so it would be nice to use that port here,
       # but it doesn't work, probably because that config is not yet available when this file is read.

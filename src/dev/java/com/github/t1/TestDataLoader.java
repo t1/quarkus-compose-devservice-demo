@@ -52,9 +52,9 @@ public class TestDataLoader {
     }
 
     private void createBucket() {
-        log.info("make bucket: {}", bucketName);
+        log.info("create bucket: {}", bucketName);
 
-        s3.makeBucket(bucketName);
+        s3.createBucket(bucketName);
 
         log.info("set access policy to DOWNLOAD for bucket {}", bucketName);
         s3.setBucketPolicy(bucketName, DOWNLOAD_POLICY);
