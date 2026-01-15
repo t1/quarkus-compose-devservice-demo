@@ -44,10 +44,11 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
-        <!--we need this dependency only so that the compose.yaml is loaded-->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-jdbc-postgresql</artifactId>
+            <!--we don't _use_ this dependency, it's only here so that the compose.yaml is loaded-->
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

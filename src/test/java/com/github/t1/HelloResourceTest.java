@@ -3,6 +3,7 @@ package com.github.t1;
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
 
+import static com.github.t1.S3Test.ENDPOINT;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
 
@@ -38,7 +39,7 @@ class HelloResourceTest {
     @Test
     void testS3Endpoint() {
         given()
-                .when().get(S3Test.ENDPOINT + "/test/s3.txt")
+                .when().get(ENDPOINT + "/test/s3.txt")
                 .then()
                 .statusCode(200)
                 .body(is("S3 file available"));

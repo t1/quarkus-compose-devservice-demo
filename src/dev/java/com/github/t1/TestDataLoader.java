@@ -6,6 +6,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
+import static com.github.t1.S3.BucketAlreadyOwnedByYouException;
+
 @Startup
 @ApplicationScoped
 @Slf4j
@@ -54,12 +56,16 @@ public class TestDataLoader {
     private void createBucket() {
         log.info("create bucket: {}", bucketName);
 
-        s3.createBucket(bucketName);
+        try {
+            s3.createBucket(bucketName);
+        } catch (BucketAlreadyOwnedByYouException e) {
+            log.info("bucket already exists: {}", bucketName);
+        }
 
         log.info("set access policy to DOWNLOAD for bucket {}", bucketName);
         s3.setBucketPolicy(bucketName, DOWNLOAD_POLICY);
 
-        log.info("bucket made: {}", bucketName);
+        log.info("bucket created: {}", bucketName);
     }
 
     private void putFile() {

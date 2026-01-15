@@ -38,7 +38,7 @@ class S3Test {
         @BeforeAll static void shouldCreateBucket() {
             try {
                 S3.createBucket(bucketName);
-                log.info("bucket made: {}", bucketName);
+                log.info("bucket created: {}", bucketName);
             } catch (S3.BucketAlreadyOwnedByYouException e) {
                 log.info("bucket already exists: {}", bucketName);
             }
