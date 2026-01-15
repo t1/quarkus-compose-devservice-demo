@@ -18,11 +18,16 @@ import software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+import software.amazon.awssdk.services.s3.model.NotificationConfiguration;
+import software.amazon.awssdk.services.s3.model.PutBucketNotificationConfigurationRequest;
 import software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.QueueConfiguration;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.net.URI;
+
+import static software.amazon.awssdk.services.s3.model.Event.S3_OBJECT_CREATED;
 
 @ApplicationScoped
 @Accessors(fluent = true)
@@ -100,14 +105,24 @@ public class S3 implements AutoCloseable {
         return s3().getObjectAsBytes(GetObjectRequest.builder().bucket(bucketName).key(objectName).build()).asUtf8String();
     }
 
+    public void addEventListener(String bucketName, String queue) {
+        s3().putBucketNotificationConfiguration(PutBucketNotificationConfigurationRequest.builder()
+                .bucket(bucketName)
+                .notificationConfiguration(NotificationConfiguration.builder()
+                        .queueConfigurations(QueueConfiguration.builder()
+                                .queueArn(queue)
+                                .events(S3_OBJECT_CREATED)
+                                .build())
+                        .build())
+                .build());
+    }
+
     public void removeObject(String bucketName, String objectName) {
-        var req = DeleteObjectRequest.builder().bucket(bucketName).key(objectName).build();
-        s3().deleteObject(req);
+        s3().deleteObject(DeleteObjectRequest.builder().bucket(bucketName).key(objectName).build());
     }
 
     public void removeBucket(String bucketName) {
-        var req = DeleteBucketRequest.builder().bucket(bucketName).build();
-        s3().deleteBucket(req);
+        s3().deleteBucket(DeleteBucketRequest.builder().bucket(bucketName).build());
     }
 
     @Override public void close() {

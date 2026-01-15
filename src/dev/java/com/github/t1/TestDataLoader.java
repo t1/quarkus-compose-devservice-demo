@@ -6,13 +6,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
+import static com.github.t1.HelloResource.BUCKET_NAME;
 import static com.github.t1.S3.BucketAlreadyOwnedByYouException;
 
 @Startup
 @ApplicationScoped
 @Slf4j
 public class TestDataLoader {
-    private static final String bucketName = "test";
     private static final String objectName = "s3.txt";
     private static final String content = "S3 file available";
     private static final String DOWNLOAD_POLICY = """
@@ -39,6 +39,16 @@ public class TestDataLoader {
                     "s3:GetObject"
                   ],
                   "Resource": ["arn:aws:s3:::test/*"]
+                },
+                {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "AWS": ["*"]
+                  },
+                  "Action": [
+                    "s3:PutObject"
+                  ],
+                  "Resource": ["arn:aws:s3:::test/*"]
                 }
               ]
             }""";
@@ -47,29 +57,29 @@ public class TestDataLoader {
 
     @PostConstruct
     void init() {
-        log.info("initializing test data in S3 bucket: {}/{}", bucketName, objectName);
+        log.info("initializing test data in S3 bucket: {}/{}", BUCKET_NAME, objectName);
         createBucket();
         putFile();
-        log.info("initialized test data in S3 bucket: {}/{}", bucketName, objectName);
+        log.info("initialized test data in S3 bucket: {}/{}", BUCKET_NAME, objectName);
     }
 
     private void createBucket() {
-        log.info("create bucket: {}", bucketName);
+        log.info("create bucket: {}", BUCKET_NAME);
 
         try {
-            s3.createBucket(bucketName);
+            s3.createBucket(BUCKET_NAME);
         } catch (BucketAlreadyOwnedByYouException e) {
-            log.info("bucket already exists: {}", bucketName);
+            log.info("bucket already exists: {}", BUCKET_NAME);
         }
 
-        log.info("set access policy to DOWNLOAD for bucket {}", bucketName);
-        s3.setBucketPolicy(bucketName, DOWNLOAD_POLICY);
+        log.info("set access policy to DOWNLOAD for bucket {}", BUCKET_NAME);
+        s3.setBucketPolicy(BUCKET_NAME, DOWNLOAD_POLICY);
 
-        log.info("bucket created: {}", bucketName);
+        log.info("bucket created: {}", BUCKET_NAME);
     }
 
     private void putFile() {
-        s3.putTextObject(bucketName, objectName, content);
-        log.info("file uploaded: {}/{}", bucketName, objectName);
+        s3.putTextObject(BUCKET_NAME, objectName, content);
+        log.info("file uploaded: {}/{}", BUCKET_NAME, objectName);
     }
 }

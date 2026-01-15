@@ -5,15 +5,15 @@ services:
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
-    # to receive S3 notifications, this and the WEBHOOK env vars below are required
-    #extra_hosts:
-    #  - "host.docker.internal:host-gateway"
+    # to receive S3 events, this and the WEBHOOK env vars below are required
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       MINIO_ROOT_USER: 'admin'
       MINIO_ROOT_PASSWORD: '12345678' # minio min len is 8 chars
-      ## see https://github.com/minio/minio/tree/master/docs/bucket/notifications#step-1-add-webhook-endpoint-to-minio
-      #MINIO_NOTIFY_WEBHOOK_ENABLE: "on"
-      #MINIO_NOTIFY_WEBHOOK_ENDPOINT: "http://host.docker.internal:8080/callbacks"
+      # see https://github.com/minio/minio/tree/master/docs/bucket/notifications#step-1-add-webhook-endpoint-to-minio
+      MINIO_NOTIFY_WEBHOOK_ENABLE: "on"
+      MINIO_NOTIFY_WEBHOOK_ENDPOINT: "http://host.docker.internal:8080/s3/events"
     labels:
       io.quarkus.devservices.compose.config_map.env.MINIO_ROOT_USER: quarkus.rest-client.s3.username
       io.quarkus.devservices.compose.config_map.env.MINIO_ROOT_PASSWORD: quarkus.rest-client.s3.password

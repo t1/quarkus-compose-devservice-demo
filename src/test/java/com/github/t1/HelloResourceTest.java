@@ -3,8 +3,11 @@ package com.github.t1;
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 import static com.github.t1.S3Test.ENDPOINT;
 import static io.restassured.RestAssured.given;
+import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
 import static org.hamcrest.CoreMatchers.is;
 
 @QuarkusTest
@@ -52,5 +55,15 @@ class HelloResourceTest {
                 .then()
                 .statusCode(200)
                 .body(is("Hello, S3 file available"));
+    }
+
+    @Test
+    void testPostEndpoint() {
+        var content = UUID.randomUUID().toString();
+        given()
+                .when().body(content).contentType(TEXT_PLAIN).post("/hello/s3")
+                .then()
+                .statusCode(200)
+                .body(is("got:" + content));
     }
 }
