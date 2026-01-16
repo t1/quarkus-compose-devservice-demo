@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Path("/hello")
 @Slf4j
@@ -61,17 +62,23 @@ public class HelloResource {
     @Consumes(TEXT_PLAIN)
     @Produces(TEXT_PLAIN)
     public void post(String body, @Suspended AsyncResponse response) {
-        var id = Instant.now().toString();
-        log.info("put text object to S3 bucket `{}` object `{}`: `{}`", BUCKET_NAME, id, body);
+        response.setTimeout(5, SECONDS);
 
+        var id = Instant.now().toString();
+
+        log.info("listen for object created event for {}/{}", BUCKET_NAME, id);
         objectCreatedHandlers.put(BUCKET_NAME + "/" + id, () -> {
             log.info("object `{}` was created", id);
             var read = s3.getTextObject(BUCKET_NAME, id);
             if (!read.equals(body)) throw new RuntimeException("expected `" + body + "` but got `" + read + "`");
+
             s3.removeObject(BUCKET_NAME, id);
-            response.resume("got:" + read);
+
+            response.resume("got:" + body);
         });
 
+        log.info("put text object to S3 bucket `{}` object `{}`: `{}`", BUCKET_NAME, id, body);
         s3.putTextObject(BUCKET_NAME, id, body);
+        log.info("successful put text object to S3 bucket `{}` object `{}`: `{}`", BUCKET_NAME, id, body);
     }
 }

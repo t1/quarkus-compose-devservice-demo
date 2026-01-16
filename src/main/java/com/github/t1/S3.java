@@ -3,6 +3,7 @@ package com.github.t1;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.Getter;
 import lombok.experimental.Accessors;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -31,16 +32,17 @@ import static software.amazon.awssdk.services.s3.model.Event.S3_OBJECT_CREATED;
 
 @ApplicationScoped
 @Accessors(fluent = true)
+@Slf4j
 @SuppressWarnings("resource")
 public class S3 implements AutoCloseable {
-    private final String endpoint;
+    private final URI endpoint;
     private final String region;
     private final String username;
     private final String password;
 
     @Getter(lazy = true)
     private final S3Client s3 = S3Client.builder()
-            .endpointOverride(URI.create(endpoint))
+            .endpointOverride(endpoint)
             .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(username, password)))
             .region(Region.of(region))
             .httpClientBuilder(ApacheHttpClient.builder())
@@ -48,14 +50,15 @@ public class S3 implements AutoCloseable {
             .build();
 
     public S3(
-            @ConfigProperty(name = "quarkus.rest-client.s3.uri") String endpoint,
-            @ConfigProperty(name = "quarkus.rest-client.s3.region", defaultValue = "dummy-region") String region,
-            @ConfigProperty(name = "quarkus.rest-client.s3.username") String username,
-            @ConfigProperty(name = "quarkus.rest-client.s3.password") String password) {
+            @ConfigProperty(name = "s3.uri") URI endpoint,
+            @ConfigProperty(name = "s3.region", defaultValue = "dummy-region") String region,
+            @ConfigProperty(name = "s3.username") String username,
+            @ConfigProperty(name = "s3.password") String password) {
         this.endpoint = endpoint;
         this.region = region;
         this.username = username;
         this.password = password;
+        log.info("using S3 endpoint: {}", this.endpoint);
     }
 
     public void createBucket(String bucketName) {
@@ -125,9 +128,7 @@ public class S3 implements AutoCloseable {
         s3().deleteBucket(DeleteBucketRequest.builder().bucket(bucketName).build());
     }
 
-    @Override public void close() {
-        s3().close();
-    }
+    @Override public void close() {s3().close();}
 
     public static class BucketAlreadyOwnedByYouException extends RuntimeException {
         public BucketAlreadyOwnedByYouException(String bucketName, Throwable cause) {

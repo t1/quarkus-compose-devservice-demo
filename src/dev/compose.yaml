@@ -3,8 +3,8 @@ services:
   s3:
     image: minio/minio
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+      - "9000"
+      - "9001"
     # to receive S3 events, this and the WEBHOOK env vars below are required
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -15,8 +15,8 @@ services:
       MINIO_NOTIFY_WEBHOOK_ENABLE: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT: "http://host.docker.internal:8080/s3/events"
     labels:
-      io.quarkus.devservices.compose.config_map.env.MINIO_ROOT_USER: quarkus.rest-client.s3.username
-      io.quarkus.devservices.compose.config_map.env.MINIO_ROOT_PASSWORD: quarkus.rest-client.s3.password
-      io.quarkus.devservices.compose.config_map.port.9000: quarkus.rest-client.s3.port
-      io.quarkus.devservices.compose.config_map.port.9001: quarkus.rest-client.s3.ui-port
+      io.quarkus.devservices.compose.config_map.env.MINIO_ROOT_USER: s3.username
+      io.quarkus.devservices.compose.config_map.env.MINIO_ROOT_PASSWORD: s3.password
+      io.quarkus.devservices.compose.config_map.port.9000: s3.port
+      io.quarkus.devservices.compose.config_map.port.9001: s3.ui-port
     command: server /data --console-address ":9001"

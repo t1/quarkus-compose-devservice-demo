@@ -4,10 +4,15 @@ Advanced demos of using https://quarkus.io[Quarkus] Dev Services:
 
 * a `FakeService` class in `/src/dev/java` that runs in `test` and `dev` modes, but not in `prod`.
 * a `compose.yaml` that starts a https://min.io[min.io] S3 server.
-The `TestDataLoader` class in `/src/dev/java` creates a bucket and uploads some test data to the `minio` server.
+** The `TestDataLoader` class in `/src/dev/java` creates a bucket and uploads some test data to the `minio` server.
+** S3 Events (like object created) are hooked up to `S3Events`.
 
 For details about the Compose Dev Services, see the corresponding https://quarkus.io/guides/compose-dev-services[Quarkus Guide].
-Note that the `FakeService` does not use that mechanism nor a Docker container, but being just a regular Java class, this is a handy alternative for mocking/faking services.
+
+[NOTE]
+====
+`FakeService` is a convenient way to run a test double without a Docker container or anything, being just a regular Java class; this is a handy alternative to locally mock/fake services your application depends on. In this way, you test the state, not the behavior.
+====
 
 == Usage
 
@@ -21,12 +26,17 @@ mvn -Pdev
 Then you can access all endpoints in the Dev UI, or by opening these URLs in your browser, curl, httpie, etc.:
 
 * http://localhost:8080/hello direct greeting
-* http://localhost:8080/fake response from the `FakeService`
+* http://localhost:8080/fake direct response from the `FakeService`
 * http://localhost:8080/hello/fake greeting utilizing the `FakeService`
 * http://localhost:<random-port>/test/s3.txt response from `S3`
 * http://localhost:8080/hello/s3 greeting utilizing `S3`
 
-You can also run the tests by pressing `r`.
+You can also POST to `http://localhost:8080/hello/s3` to create a new object in S3; the body of the POST request will be the content of the object, and a random UUID will be used as the object key. Then the request waits for an event from S3 to confirm that the object was created, before verifying the content, deleting the object, and returning a greeting that includes the content. With httpie, you can do that like this:
+
+[source,bash]
+----
+http --raw='foobar' -v :8080/hello/s3 Content-Type:text/plain
+----
 
 == Issues
 
@@ -39,8 +49,8 @@ It's not part of the compose network and won't get cleaned up by Ryuk!
 
 === Port Mapping
 
-When you run the tests from within the dev mode, a second instance of the Dev Services is started, so we need separate ports for the `minio` service for `test` and `dev` mode.
-The easiest way to do that is to map the `minio` service port `9000` to a random host port.
+When you run the tests from within the dev mode, a second instance of the Docker network and each Dev Service is started, so we need separate ports for the `minio` service for `test` and `dev` mode.
+The default and easiest way to do that is to map the `minio` service port `9000` to a random host port in the `compose.yaml`.
 
 We would also like to bind the network interface only to `localhost`, so the service is not being exposed on a Linux machine (as the default binding is `0.0.0.0`), but then we need to specify the host port as well; `127.0.0.1:9000` doesn't work, because `127.0.0.1` is not a valid port number.
 
@@ -57,3 +67,5 @@ services:
         target: 9000
         host_ip: 127.0.0.1
 ----
+
+The application wants a configuration `s3.uri`, so we set that in the `application-dev.properties` and `application-test.properties` files accordingly, based on the `s3.port` defined in the `compose.yaml`.

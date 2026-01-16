@@ -11,6 +11,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import static com.github.t1.HelloResource.BUCKET_NAME;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
@@ -24,6 +25,8 @@ public class S3Events {
     @Inject
     Event<ObjectCreatedEvent> objectCreatedEvents;
 
+    @Inject @ConfigProperty(name = "s3.event-queue") String eventQueue;
+
     @Startup
     void init() {
         log.info("create S3 bucket");
@@ -35,7 +38,7 @@ public class S3Events {
 
         // see https://github.com/minio/minio/tree/master/docs/bucket/notifications#step-2-enable-webhook-bucket-notification-using-minio-client
         log.info("init S3 bucket event listener");
-        s3.addEventListener(BUCKET_NAME, "arn:minio:sqs::_:webhook"); // underscore => no ENV suffix in compose.yaml
+        s3.addEventListener(BUCKET_NAME, eventQueue);
     }
 
     @POST
