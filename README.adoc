@@ -31,7 +31,7 @@ Then you can access all endpoints in the Dev UI, or by opening these URLs in you
 * http://localhost:<random-port>/test/s3.txt response from `S3`
 * http://localhost:8080/hello/s3 greeting utilizing `S3`
 
-You can also POST to `http://localhost:8080/hello/s3` to create a new object in S3; the body of the POST request will be the content of the object, and a random UUID will be used as the object key. Then the request waits for an event from S3 to confirm that the object was created, before verifying the content, deleting the object, and returning a greeting that includes the content. With httpie, you can do that like this:
+You can also POST to `http://localhost:8080/hello/s3` to create a new object in S3; the body of the POST request will be the content of the object, and a random UUID will be used as the object key. Then the request waits for an event from S3 to confirm that the object was created, before verifying the content, deleting the object, and returning a greeting that includes the content. With https://httpie.io/cli[httpie], you can do that like this:
 
 [source,bash]
 ----
