@@ -12,6 +12,9 @@ For details about the Compose Dev Services, see the corresponding https://quarku
 [NOTE]
 ====
 `FakeService` is a convenient way to run a test double without a Docker container or anything, being just a regular Java class; this is a handy alternative to locally mock/fake services your application depends on. In this way, you test the state, not the behavior.
+
+It's better than using the `@IfBuildProfile` annotation, because it doesn't show up in the prod
+`jar` file, but it requires a maven profile to be activated.
 ====
 
 == Usage
