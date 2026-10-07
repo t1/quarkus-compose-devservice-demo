@@ -17,6 +17,7 @@
         <quarkus.platform.version>3.40.1</quarkus.platform.version>
 
         <compiler-plugin.version>3.16.0</compiler-plugin.version>
+        <lombok.version>1.18.48</lombok.version>
         <surefire-plugin.version>3.6.0</surefire-plugin.version>
     </properties>
 
@@ -36,7 +37,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.48</version>
+            <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -141,7 +142,7 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.48</version>
+                            <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
