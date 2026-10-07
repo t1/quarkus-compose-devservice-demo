@@ -1,7 +1,6 @@
 package com.github.t1;
 
 import io.quarkus.test.junit.QuarkusTest;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
@@ -59,7 +58,6 @@ class HelloResourceTest {
     }
 
     @Test
-    @Disabled("fails; could it be that S3 is prematurely shut down?")
     void testPostEndpoint() {
         var content = UUID.randomUUID().toString();
         given()

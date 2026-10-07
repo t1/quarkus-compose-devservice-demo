@@ -3,6 +3,5 @@ quarkus:
     fake-service:
       uri: http://localhost:8080/fake
 s3:
-  # combine the random port that we define in the compose.yaml to the full S3 uri
   uri: http://localhost:${s3.port}
-  event-queue: "arn:minio:sqs::_:webhook" # the underscore is due to we don't define an ENV suffix in compose.yaml
+  event-queue: "arn:minio:sqs::_:webhook"

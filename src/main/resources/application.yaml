@@ -3,6 +3,9 @@ quarkus:
     devservices:
       enabled: true
       files: src/dev/compose.yaml
+  datasource:
+    devservices:
+      enabled: false
   swagger-ui:
     always-include: true
     deep-linking: true

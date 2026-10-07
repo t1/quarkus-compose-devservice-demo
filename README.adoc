@@ -46,34 +46,123 @@ You can also POST to `http://localhost:8080/hello/s3` to create a new object in 
 http --raw='foobar' -v :8080/hello/s3 Content-Type:text/plain
 ----
 
-== Issues
-
-=== Dependency that defines a Dev Service https://github.com/quarkusio/quarkus/issues/48460[#48460]
-
-We have a dependency on `quarkus-jdbc-postgresql`, even though we don't use it in this demo.
-But we need some dependency with a Dev Service so the Compose Dev Services load at all.
-The downside is that the `postgresql` container is started as well.
-It's not part of the compose network and won't get cleaned up by Ryuk!
+== Learnings
 
 === Port Mapping
 
 When you run the tests from within the dev mode, a second instance of the Docker network and each Dev Service is started, so we need separate ports for the `s3` service for `test` and `dev` mode.
-The default and easiest way to do that is to map the `s3` service port `9000` to a random host port in the `compose.yaml`.
+We would also like to bind the network interface only to `localhost`, so the service is not being exposed on a Linux machine (as the default binding is `0.0.0.0`).
 
-We would also like to bind the network interface only to `localhost`, so the service is not being exposed on a Linux machine (as the default binding is `0.0.0.0`), but then we need to specify the host port as well; `127.0.0.1:9000` doesn't work, because `127.0.0.1` is not a valid port number.
-
-The https://github.com/compose-spec/compose-spec/blob/main/spec.md[Compose Spec] defines a syntax for specifying a port range, so we could use "127.0.0.1:9000:9000-9999", but that syntax is currently not supported by Quarkus Dev Services; it fails with `Error parsing ExposedPort '9000-9999'` in `ExposedPort.java:131`.
-
-There's also a https://github.com/compose-spec/compose-spec/blob/main/spec.md#long-syntax-3[long form] for the port mapping, but that fails, too:
+[NOTE]
+====
+Both is possible with a host-side port range in the https://github.com/compose-spec/compose-spec/blob/main/spec.md#short-syntax-4[short syntax] for the port mapping:
+the host IP `127.0.0.1` binds to `localhost` only, and the port range `9000-9999` lets Docker Compose pick a free host port, so a second instance gets another one.
+That's what we do in the `compose.yaml`:
 
 [source,yaml]
 ----
 services:
   s3:
     ports:
-      - name: api
-        target: 9000
-        host_ip: 127.0.0.1
+      - "127.0.0.1:9000-9999:9000"
+      - "127.0.0.1:9000-9999:9001"
 ----
 
+Quarkus passes the port mapping string through to the docker-java `PortBinding.parse`, which only validates the container side;
+it uses the parsed container port to wait for the service and to look up the mapped port for the config map labels,
+and the actual host port is read from the running container, so the `s3.port` property is always correct.
+====
+
+Mind the syntax:
+`127.0.0.1:9000` doesn't work, because `127.0.0.1` is not a valid port number, and the port range syntax `127.0.0.1:9000:9000-9999` fails with `Error parsing ExposedPort '9000-9999'` in `ExposedPort.java`, as Quarkus passes the string through to the docker-java `PortBinding.parse` — i.e. a port range only works on the host side.
+The https://github.com/compose-spec/compose-spec/blob/main/spec.md#long-syntax-4[long syntax] is equivalent: set `host_ip: 127.0.0.1` and `published: "9000-9999"`.
+
 The application wants a configuration `s3.uri`, so we set that in the `application-dev.yaml` and `application-test.yaml` files accordingly, based on the `s3.port` defined in the `compose.yaml`.
+
+=== Calling the Host from a Compose Service
+
+The `s3` service sends event notifications back to our app, so it has to be able to call the host from inside the container:
+`localhost` won't do, as it would refer to the container itself, but `host.docker.internal` does.
+Docker Desktop provides that hostname out of the box, but on Linux it has to be added to the `compose.yaml`:
+
+[source,yaml]
+----
+services:
+  s3:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+----
+
+The webhook endpoint for the S3 events is configured with the `MINIO_NOTIFY_WEBHOOK_ENABLE` and `MINIO_NOTIFY_WEBHOOK_ENDPOINT` environment variables of the `s3` service;
+see https://github.com/minio/minio/tree/master/docs/bucket/notifications#step-1-add-webhook-endpoint-to-minio[step 1] and https://github.com/minio/minio/tree/master/docs/bucket/notifications#step-2-enable-webhook-bucket-notification-using-minio-client[step 2] of the MinIO docs — the latter is done in `S3Events`.
+
+=== Config Map Labels
+
+The `io.quarkus.devservices.compose.config_map.*` labels in the `compose.yaml` map values of the running service to configuration properties:
+`env.MINIO_ROOT_USER: s3.username` and `env.MINIO_ROOT_PASSWORD: s3.password` map environment variables,
+and `port.9000: s3.port` and `port.9001: s3.ui-port` map container ports — the actual host port is resolved, as described in the Port Mapping section.
+That's where the `s3.username`, `s3.password`, and `s3.port` properties come from;
+the `s3.uri` that `S3` uses is composed from the port in the `application-dev.yaml` and `application-test.yaml`.
+
+=== S3 Event Notifications
+
+The `s3.event-queue` configuration property tells the S3 server which queue to use for the event notifications:
+the ARN is `arn:minio:sqs::_:webhook`, where the `_` is the empty slot for the environment suffix that we don't define in the `compose.yaml`.
+
+The webhook endpoint has to point back at our app, but its port is mode-specific:
+the dev mode listens on `8080`, but a `@QuarkusTest` instance listens on `8081` by default, so it can run alongside the dev mode.
+When we hardcoded `8080`, the events of the S3 service started for the tests never reached the test app — neither standalone nor from within the dev mode;
+in the latter case, they even went to the dev app instead.
+The POST to `/hello/s3` then waited for the confirming event until it timed out after 5 seconds and returned a `503`.
+
+[NOTE]
+====
+The port can be parameterized with an environment variable that Docker Compose interpolates:
+
+[source,yaml]
+----
+MINIO_NOTIFY_WEBHOOK_ENDPOINT: "http://host.docker.internal:${APP_PORT:-8080}/s3/events"
+----
+
+The value is set per mode via the `quarkus.compose.devservices.env-variables` configuration in the `application-test.yaml`:
+
+[source,yaml]
+----
+quarkus:
+  compose:
+    devservices:
+      env-variables:
+        APP_PORT: "8081"
+----
+
+These environment variables are passed to the `docker compose` process, so the interpolation is mode-specific even for instances started from within the dev mode:
+the configuration is read per launch with the active profile, so the dev instance falls back to the default `8080`, while the test instance gets `8081`.
+(Expanding a runtime property like `${quarkus.http.test-port}` doesn't work here, as this configuration is read at build time.)
+====
+
+== Issues
+
+=== Dependency that defines a Dev Service https://github.com/quarkusio/quarkus/issues/48460[#48460]
+
+We have a dependency on `quarkus-jdbc-postgresql`, even though we don't use it in this demo; it's disabled.
+But we need some dependency with a Dev Service so the Compose Dev Services load at all:
+they are implemented in the `quarkus-devservices-deployment` artifact, which is only pulled into the deployment classpath by extensions that have Dev Services, like `quarkus-jdbc-postgresql`.
+
+[NOTE]
+====
+The downside is that the `postgresql` container would be started as well:
+it's not part of the compose network and won't get cleaned up by Ryuk!
+We avoid that by disabling its Dev Service in the `application.yaml`:
+
+[source,yaml]
+----
+quarkus:
+  datasource:
+    devservices:
+      enabled: false
+----
+
+Alternatives don't help: adding the tiny `io.quarkus:quarkus-devservices` runtime artifact is rejected by the Quarkus bootstrap,
+and swapping `postgresql` for `h2` doesn't load the compose file either,
+because `quarkus-jdbc-h2-deployment` only depends on `quarkus-datasource-deployment-spi`.
+====
