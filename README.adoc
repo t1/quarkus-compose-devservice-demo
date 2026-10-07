@@ -3,18 +3,23 @@
 Advanced demos of using https://quarkus.io[Quarkus] Dev Services:
 
 * a `FakeService` class in `/src/dev/java` that runs in `test` and `dev` modes, but not in `prod`.
-* a `compose.yaml` that starts a https://github.com/pgsty/silo[Silo] S3 server; Silo is a MinIO fork we use because MinIO no longer publishes free images (see <<no-public-minio-images>> below).
-** The `TestDataLoader` class in `/src/dev/java` creates a bucket and uploads some test data to the `silo` server.
+* a `compose.yaml` that starts a https://github.com/pgsty/silo[Silo] S3 server.
+** The `TestDataLoader` class in `./src/dev/java` creates a bucket and uploads some test data to the `silo` server.
 ** S3 Events (like object created) are hooked up to `S3Events`.
+
+[NOTE]
+====
+We switched to Silo because MinIO no longer publishes free server images.
+As a fork, it's a drop-in replacement.
+====
 
 For details about the Compose Dev Services, see the corresponding https://quarkus.io/guides/compose-dev-services[Quarkus Guide].
 
 [NOTE]
 ====
-`FakeService` is a convenient way to run a test double without a Docker container or anything, being just a regular Java class; this is a handy alternative to locally mock/fake services your application depends on. In this way, you test the state, not the behavior.
+`FakeService` is a convenient way to run a test double without a Docker container or anything, being just a regular Java class; this is a handy alternative to locally mock/fake services your application depends on. In this way, you test the state, not the behaviour.
 
-It's better than using the `@IfBuildProfile` annotation, because it doesn't show up in the prod
-`jar` file, but it requires a maven profile to be activated.
+Using `./src/dev/java` is better than using the `@IfBuildProfile(anyOf = {"test", "dev"})` annotation, as that would still ship the class in the prod `jar`, just with the bean disabled. See the `pom.xml` for the exact setup for `dev` as well as `test`.
 ====
 
 == Usage
@@ -49,17 +54,6 @@ We have a dependency on `quarkus-jdbc-postgresql`, even though we don't use it i
 But we need some dependency with a Dev Service so the Compose Dev Services load at all.
 The downside is that the `postgresql` container is started as well.
 It's not part of the compose network and won't get cleaned up by Ryuk!
-
-[[no-public-minio-images]]
-=== No Public MinIO Images
-
-We used to start the `minio/minio` image here, but MinIO no longer publishes free server images:
-the `minio/minio` repository has been deleted from Docker Hub
-(the `minio` organization only publishes auxiliary tools like `warp` and `sidekick`),
-`quay.io/minio/minio` requires authentication,
-and the https://github.com/minio/minio/releases[GitHub releases] don't contain binaries either.
-So we use https://github.com/pgsty/silo[Silo], a MinIO fork maintained by PGSTY that publishes public images on Docker Hub.
-As a fork, it's a drop-in replacement: the `MINIO_*` environment variables (root user/password, webhook event notifications), the `server /data --console-address ":9001"` command, and the S3-compatible API all work as before.
 
 === Port Mapping
 
