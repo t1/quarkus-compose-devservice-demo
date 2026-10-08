@@ -154,9 +154,27 @@ quarkus:
     host: 0.0.0.0
 ----
 
-Note that this does not trip the https://quarkus.io/guides/http-reference#host-validation[host validation],
+Note that this does not trip the https://quarkus.io/guides/http-reference#host-header-validation[host header validation],
 which auto-enables when `quarkus.http.host` is a localhost name in dev and production (but not test) mode;
 the `Host: host.docker.internal:8081` header of the webhook POST is thus accepted without further configuration.
+
+It's the other way round in dev mode:
+there, the host header validation *does* auto-enable, as the dev server binds to `localhost` by default,
+and it rejects the `Host: host.docker.internal:8080` header of the webhook POST,
+so the `POST` to `/hello/s3` times out with a `503` just like in the CI — only for the opposite reason.
+The fix is to keep the validation enabled, but explicitly allow the hostname of the compose service in the `application-dev.yaml`:
+
+[source,yaml]
+----
+quarkus:
+  http:
+    host-validation:
+      allowed-hosts: localhost,host.docker.internal
+----
+
+This also covers a Linux dev machine, where the dev server has to bind to `0.0.0.0` like the test server above:
+the explicit allow-list applies regardless of the binding, while the automatic validation would be off, as `0.0.0.0` is not a localhost name.
+Activating the validation for the test server makes no sense, though: it protects browsers from DNS rebinding, and an ephemeral test server has no browser pointed at it (also mind that `Host: host.docker.internal` in the test server's webhook is as trivially spoofable as any HTTP header, so it's no access control either).
 
 == Issues
 
