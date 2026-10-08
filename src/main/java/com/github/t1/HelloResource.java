@@ -65,10 +65,11 @@ public class HelloResource {
         response.setTimeout(15, SECONDS);
 
         var id = Instant.now().toString();
+        var key = BUCKET_NAME + "/" + id;
 
-        log.info("listen for object created event for {}/{}", BUCKET_NAME, id);
-        objectCreatedHandlers.put(BUCKET_NAME + "/" + id, () -> {
-            log.info("object `{}` was created", id);
+        log.info("listen for object created event for {}", key);
+        objectCreatedHandlers.put(key, () -> {
+            log.info("object `{}` was created", key);
             var read = s3.getTextObject(BUCKET_NAME, id);
             if (!read.equals(body)) throw new RuntimeException("expected `" + body + "` but got `" + read + "`");
 
