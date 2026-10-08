@@ -79,7 +79,7 @@ The https://github.com/compose-spec/compose-spec/blob/main/spec.md#long-syntax-4
 
 The application wants a configuration `s3.uri`, so we set that in the `application-dev.yaml` and `application-test.yaml` files accordingly, based on the `s3.port` defined in the `compose.yaml`.
 
-=== Calling the Host from a Compose Service
+=== S3 Event Notifications
 
 The `s3` service sends event notifications back to our app, so it has to be able to call the host from inside the container:
 `localhost` won't do, as it would refer to the container itself, but `host.docker.internal` does.
@@ -94,37 +94,21 @@ services:
 ----
 
 The webhook endpoint for the S3 events is configured with the `MINIO_NOTIFY_WEBHOOK_ENABLE` and `MINIO_NOTIFY_WEBHOOK_ENDPOINT` environment variables of the `s3` service;
-see https://github.com/minio/minio/tree/master/docs/bucket/notifications#step-1-add-webhook-endpoint-to-minio[step 1] and https://github.com/minio/minio/tree/master/docs/bucket/notifications#step-2-enable-webhook-bucket-notification-using-minio-client[step 2] of the MinIO docs — the latter is done in `S3Events`.
-
-=== Config Map Labels
-
-The `io.quarkus.devservices.compose.config_map.*` labels in the `compose.yaml` map values of the running service to configuration properties:
-`env.MINIO_ROOT_USER: s3.username` and `env.MINIO_ROOT_PASSWORD: s3.password` map environment variables,
-and `port.9000: s3.port` and `port.9001: s3.ui-port` map container ports — the actual host port is resolved, as described in the Port Mapping section.
-That's where the `s3.username`, `s3.password`, and `s3.port` properties come from;
-the `s3.uri` that `S3` uses is composed from the port in the `application-dev.yaml` and `application-test.yaml`.
-
-=== S3 Event Notifications
-
-The `s3.event-queue` configuration property tells the S3 server which queue to use for the event notifications:
+see https://github.com/minio/minio/tree/master/docs/bucket/notifications#step-1-add-webhook-endpoint-to-minio[step 1] and https://github.com/minio/minio/tree/master/docs/bucket/notifications#step-2-enable-webhook-bucket-notification-using-minio-client[step 2] of the MinIO docs.
+Step 2 is done in `S3Events`, where the `s3.event-queue` property names the queue:
 the ARN is `arn:minio:sqs::_:webhook`, where the `_` is the empty slot for the environment suffix that we don't define in the `compose.yaml`.
 
-The webhook endpoint has to point back at our app, but its port is mode-specific:
-the dev mode listens on `8080`, but a `@QuarkusTest` instance listens on `8081` by default, so it can run alongside the dev mode.
-When we hardcoded `8080`, the events of the S3 service started for the tests never reached the test app — neither standalone nor from within the dev mode;
-in the latter case, they even went to the dev app instead.
-The POST to `/hello/s3` then waited for the confirming event until it timed out after 5 seconds and returned a `503`.
+The webhook endpoint has to point back at our app — and pass three hurdles on the way: the right port, a reachable server, and a valid host header.
 
-[NOTE]
-====
-The port can be parameterized with an environment variable that Docker Compose interpolates:
+The port is mode-specific: the dev mode listens on `8080`, but a `@QuarkusTest` instance listens on `8081` by default, so it can run alongside the dev mode.
+We parameterize the endpoint with an environment variable that Docker Compose interpolates:
 
 [source,yaml]
 ----
 MINIO_NOTIFY_WEBHOOK_ENDPOINT: "http://host.docker.internal:${APP_PORT:-8080}/s3/events"
 ----
 
-The value is set per mode via the `quarkus.compose.devservices.env-variables` configuration in the `application-test.yaml`:
+and set it per mode via the `quarkus.compose.devservices.env-variables` configuration in the `application-test.yaml`:
 
 [source,yaml]
 ----
@@ -135,17 +119,12 @@ quarkus:
         APP_PORT: "8081"
 ----
 
-These environment variables are passed to the `docker compose` process, so the interpolation is mode-specific even for instances started from within the dev mode:
-the configuration is read per launch with the active profile, so the dev instance falls back to the default `8080`, while the test instance gets `8081`.
+Those are passed to the `docker compose` process with the active profile — even when the test instance is started from within the dev mode — so the dev instance falls back to the default `8080`, while the test instance gets `8081`.
 (Expanding a runtime property like `${quarkus.http.test-port}` doesn't work here, as this configuration is read at build time.)
-====
 
-But there is another twist to that callback:
-the `host.docker.internal` hostname (mapped with the `extra_hosts` entry described above) resolves to the gateway IP of the docker network on Linux,
-but Docker Desktop on macOS and Windows proxies it to the host's `localhost`.
-And as the `quarkus.http.host` property defaults to `localhost` in dev and test mode (but `0.0.0.0` in prod mode, as that's more container-friendly),
-the event notifications couldn't reach the test server on a plain Linux host — so everything worked locally on a Mac, but the `POST` to `/hello/s3` timed out in GitHub Actions.
-The fix is to bind the test server to all interfaces in the `application-test.yaml`:
+Next, the server has to be reachable: `host.docker.internal` resolves to the gateway IP of the docker network on Linux, while Docker Desktop on macOS and Windows proxies it to the host's `localhost`.
+And as `quarkus.http.host` defaults to `localhost` in dev and test mode (but `0.0.0.0` in prod mode),
+the webhook never reaches a test server on a Linux host — bind it to all interfaces in the `application-test.yaml`:
 
 [source,yaml]
 ----
@@ -154,15 +133,10 @@ quarkus:
     host: 0.0.0.0
 ----
 
-Note that this does not trip the https://quarkus.io/guides/http-reference#host-header-validation[host header validation],
-which auto-enables when `quarkus.http.host` is a localhost name in dev and production (but not test) mode;
-the `Host: host.docker.internal:8081` header of the webhook POST is thus accepted without further configuration.
-
-It's the other way round in dev mode:
-there, the host header validation *does* auto-enable, as the dev server binds to `localhost` by default,
-and it rejects the `Host: host.docker.internal:8080` header of the webhook POST,
-so the `POST` to `/hello/s3` times out with a `503` just like in the CI — only for the opposite reason.
-The fix is to keep the validation enabled, but explicitly allow the hostname of the compose service in the `application-dev.yaml`:
+Finally, the https://quarkus.io/guides/http-reference#host-header-validation[host header validation]:
+it auto-enables when `quarkus.http.host` is a localhost name in dev and production mode, and then rejects the `Host: host.docker.internal:8080` header of the webhook POST.
+For the test server it stays off, as `0.0.0.0` is no localhost name.
+Keep the validation in dev, but allow the hostname of the compose service in the `application-dev.yaml`:
 
 [source,yaml]
 ----
@@ -172,9 +146,16 @@ quarkus:
       allowed-hosts: localhost,host.docker.internal
 ----
 
-This also covers a Linux dev machine, where the dev server has to bind to `0.0.0.0` like the test server above:
-the explicit allow-list applies regardless of the binding, while the automatic validation would be off, as `0.0.0.0` is not a localhost name.
-Activating the validation for the test server makes no sense, though: it protects browsers from DNS rebinding, and an ephemeral test server has no browser pointed at it (also mind that `Host: host.docker.internal` in the test server's webhook is as trivially spoofable as any HTTP header, so it's no access control either).
+(The explicit allow-list also covers a Linux dev machine, where the server has to bind to `0.0.0.0` and the automatic validation would be off.
+And validation makes no sense for the test server: it protects browsers from DNS rebinding, and no browser points at an ephemeral test server.)
+
+=== Config Map Labels
+
+The `io.quarkus.devservices.compose.config_map.*` labels in the `compose.yaml` map values of the running service to configuration properties:
+`env.MINIO_ROOT_USER: s3.username` and `env.MINIO_ROOT_PASSWORD: s3.password` map environment variables,
+and `port.9000: s3.port` and `port.9001: s3.ui-port` map container ports — the actual host port is resolved, as described in the Port Mapping section.
+That's where the `s3.username`, `s3.password`, and `s3.port` properties come from;
+the `s3.uri` that `S3` uses is composed from the port in the `application-dev.yaml` and `application-test.yaml`.
 
 == Issues
 
