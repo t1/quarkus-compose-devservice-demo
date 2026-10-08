@@ -62,7 +62,7 @@ public class HelloResource {
     @Consumes(TEXT_PLAIN)
     @Produces(TEXT_PLAIN)
     public void post(String body, @Suspended AsyncResponse response) {
-        response.setTimeout(5, SECONDS);
+        response.setTimeout(15, SECONDS);
 
         var id = Instant.now().toString();
 
