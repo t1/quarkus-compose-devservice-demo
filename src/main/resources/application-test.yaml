@@ -1,4 +1,7 @@
 quarkus:
+  http:
+    # see README: S3 Event Notifications
+    host: 0.0.0.0
   rest-client:
     fake-service:
       uri: http://localhost:8081/fake

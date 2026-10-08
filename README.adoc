@@ -140,6 +140,24 @@ the configuration is read per launch with the active profile, so the dev instanc
 (Expanding a runtime property like `${quarkus.http.test-port}` doesn't work here, as this configuration is read at build time.)
 ====
 
+But there is another twist to that callback:
+the `host.docker.internal` hostname (mapped with the `extra_hosts` entry described above) resolves to the gateway IP of the docker network on Linux,
+but Docker Desktop on macOS and Windows proxies it to the host's `localhost`.
+And as the `quarkus.http.host` property defaults to `localhost` in dev and test mode (but `0.0.0.0` in prod mode, as that's more container-friendly),
+the event notifications couldn't reach the test server on a plain Linux host — so everything worked locally on a Mac, but the `POST` to `/hello/s3` timed out in GitHub Actions.
+The fix is to bind the test server to all interfaces in the `application-test.yaml`:
+
+[source,yaml]
+----
+quarkus:
+  http:
+    host: 0.0.0.0
+----
+
+Note that this does not trip the https://quarkus.io/guides/http-reference#host-validation[host validation],
+which auto-enables when `quarkus.http.host` is a localhost name in dev and production (but not test) mode;
+the `Host: host.docker.internal:8081` header of the webhook POST is thus accepted without further configuration.
+
 == Issues
 
 === Dependency that defines a Dev Service https://github.com/quarkusio/quarkus/issues/48460[#48460]
